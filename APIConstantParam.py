@@ -59,7 +59,7 @@ def FindDerivative(paramName):
         ## Set the new value for the global parameter
         importlib.reload(LCA_Interaction) # Reload the LCA_Interaction file to get updated parameter values
         Parameters = LCA_Interaction.Parameters() # Get the updated parameter values from the LCA_Interaction file
-        userParams.itemByName(str(paramName)).expression = str(userParams[0].value) + ' in'
+        userParams.itemByName(str(paramName.name)).expression = str(paramName.value) + ' in'
 
         #Find initial mass of each body in the component
         for j in range(0, root.bRepBodies.count):
@@ -69,7 +69,7 @@ def FindDerivative(paramName):
             bodyMasses.append(mass)
         
         #Set the new value for the global parameter
-        userParams.itemByName(str(paramName)).expression = str(userParams[0].value+0.0001) + ' in'
+        userParams.itemByName(str(paramName.name)).expression = str(paramName.value+0.0001) + ' in'
 
         #Find new body masses after parameter change
         for j in range(0, root.bRepBodies.count):
@@ -81,13 +81,13 @@ def FindDerivative(paramName):
         #Calculate and display derivative of mass with respect to parameter
         for j in range(0, root.bRepBodies.count):
             BodyDerivatives.append((float(bodyMassesNew[j])-float(bodyMasses[j]))/0.0001)
-            #ui.messageBox('Derivative of ' + root.bRepBodies[j].name + ' mass with respect to ' + paramName + ' is ' + str(BodyDerivatives[j]) + ' kg/in')
+            ui.messageBox('Derivative of ' + root.bRepBodies[j].name + ' mass with respect to ' + paramName.name + ' is ' + str(BodyDerivatives[j]) + ' kg/in')
         return BodyDerivatives
 
 def AllDerivatives():
     currentDerivatives = []
     for i in range(0, userParams.count-1):
-        currentDerivatives.append(FindDerivative(userParams[i].name))
+        currentDerivatives.append(FindDerivative(userParams[i]))
     #ui.messageBox(str(currentDerivatives))
     return currentDerivatives
 
@@ -100,7 +100,7 @@ def iterate():
         bodyMasses.append(mass)
 
     currentDerivatives = AllDerivatives()
-    power = 2
+    power = -1
     temp = 1
 
     importlib.reload(LCA_Interaction) # Reload the LCA_Interaction file to get updated target mass values
@@ -110,9 +110,11 @@ def iterate():
     if TargetMasses[0]-float(bodyMasses[0]) == 0:
         ui.messageBox("check 0")
         pass
-    elif TargetMasses[0]-float(bodyMasses[0]) > 0 and currentDerivatives[0][0] < 0 or TargetMasses[0]-float(bodyMasses[0]) < 0 and currentDerivatives[0][0] > 0:
+    elif (TargetMasses[0]-float(bodyMasses[0]) > 0 and currentDerivatives[0][0] < 0) or (TargetMasses[0]-float(bodyMasses[0]) < 0 and currentDerivatives[0][0] > 0):
         while TargetMasses[0] - float(bodyMasses[0]) > 10**power:
             ui.messageBox("check 1")
+            power = int(math.log10(abs(TargetMasses[0] - float(bodyMasses[0]))))
+            ui.messageBox("Power: " + str(power))
             inc = temp*10**(power-1)
             userParams.itemByName(str(userParams[0].name)).expression = str(userParams[0]+inc) + ' in'
             if TargetMasses[0]-float(bodyMasses[0]) == 0:
@@ -122,11 +124,15 @@ def iterate():
                 ui.messageBox("check 3")
                 temp = -temp
                 power -= 1
+        power = -1
     else:
-        while TargetMasses[0] - float(bodyMasses[0]) < -(10**power):
+        while abs(TargetMasses[0] - float(bodyMasses[0])) > 10**power:
             ui.messageBox("check 4")
+            power = int(math.log10(abs(TargetMasses[0] - float(bodyMasses[0]))))
+            ui.messageBox("Power: " + str(power))
             inc = -temp*10**(power-1)
             userParams.itemByName(str(userParams[0].name)).expression = str(userParams[0].value+inc) + ' in'
+            ui.messageBox('New mass: ' + str(bodyMasses[0]))
             if TargetMasses[0]-float(bodyMasses[0]) == 0:
                 ui.messageBox("check 5")
                 pass
@@ -162,7 +168,7 @@ class MyHTMLEventHandler(adsk.core.HTMLEventHandler):
             # msg += '    Command: {}\n    arg1: {}\n    arg2: {}'.format(htmlArgs.action, data['arg1'], data['arg2'])
                 PaletteUpdate()
                 #FindDerivative(userParams[1].name)
-                AllDerivatives()
+                #AllDerivatives()
                 iterate()
                 del Firing
                 # ui.messageBox(Firing)
