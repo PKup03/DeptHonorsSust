@@ -15,6 +15,10 @@ unitsMgr = des.unitsManager
 userParams = des.userParameters
 root = des.rootComponent
 
+# Specifying units
+lenUnits = 'in'  # inches
+massUnits = 'kg'  # kilograms
+
 palette = ui.palettes.add('partMasses', 'Part Masses', 'palette.html', False, True, True, 300, 200, True)
 # The True/Falses control whether the palette is visible, if a 'Close' button is shown, and if the palette can be resized
 palette.dockingState = adsk.core.PaletteDockingStates.PaletteDockStateRight
@@ -89,71 +93,37 @@ def AllDerivatives():
     #ui.messageBox(str(currentDerivatives))
     return currentDerivatives
 
-def iterate():
-    bodyMasses = []
-    for j in range(0, root.bRepBodies.count):
-        body = root.bRepBodies.item(j)
+def GeneratePoints(NumSteps):
+    #Create a range of points around the current parameter value with a step size one decade smaller than the parameter value
+    p1 = round(userParams[0].value-(NumSteps//2)*(int(math.log10(userParams[0].value))-1), 5)
+    p1end = round(userParams[0].value+(NumSteps//2)*(int(math.log10(userParams[0].value))-1), 5)
+    list1 = []
+    if int(math.log10(userParams[0].value))-1 < 0:
+        mult = -1
+    elif int(math.log10(userParams[0].value))-1 > 0:
+        mult = 1
+    else:
+        return
+    inc = round(mult*10**(int(math.log10(userParams[0].value))-1), 5)
+    ui.messageBox("Generating points for " + str(userParams[0].name) + " from " + str(p1) + " to " + str(p1end) + " with increment of " + str(inc))
+    while p1 != p1end:
+        #ui.messageBox("Generating point at " + str(userParams[0].name) + " = " + str(p))
+        userParams.itemByName(str(userParams[0].name)).expression = str(p1) + ' in'
+        body = root.bRepBodies.item(0)
         physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties)
         mass = unitsMgr.formatInternalValue(physProps.mass, 'kg', False) #Converts mass from document mass units to kg
-        bodyMasses.append(mass)
-    ui.messageBox("Body Masses: " + str(bodyMasses))
+        
+        list1.append([p1, mass])
+        p1 = round(p1+inc, 5)
 
-    currentDerivatives = AllDerivatives()
-    power = -1
-
-    importlib.reload(LCA_Interaction) # Reload the LCA_Interaction file to get updated target mass values
-    TargetMasses = LCA_Interaction.TargetMasses() # Get the updated target mass values from the LCA_Interaction file
-    ui.messageBox("Target Masses: " + str(TargetMasses[0]))
-
-    while abs(TargetMasses[0]-float(bodyMasses[0])) > 0.1:
-        #ui.messageBox("Current derivative: " +  str(currentDerivatives[0][0]))
-        if ((TargetMasses[0]-float(bodyMasses[0])) > 0 and currentDerivatives[0][0] < 0) or ((TargetMasses[0]-float(bodyMasses[0])) < 0 and currentDerivatives[0][0] > 0):
-            while TargetMasses[0] - float(bodyMasses[0]) > 10**power:
-                ui.messageBox("check 1")
-                power = int(math.log10(abs(TargetMasses[0] - float(bodyMasses[0]))))
-                ui.messageBox("Power: " + str(power))
-                inc = -10**(power-1)/currentDerivatives[0][0]
-                userParams.itemByName(str(userParams[0].name)).expression = str(float(unitsMgr.formatInternalValue(userParams[0].value, 'in', False))+inc) + ' in'
-                bodyMasses[0] = unitsMgr.formatInternalValue(physProps.mass, 'kg', False)
-                currentDerivatives[0][0] = FindDerivative(userParams[0])[0]
-            if TargetMasses[0]-float(bodyMasses[0]) == 0:
-                ui.messageBox("check 2")
-                return
-            else:
-                ui.messageBox("check 3")
-                ui.messageBox("Target Mass: " + str(TargetMasses[0]) + " Body Mass: " + str(bodyMasses[0]))
-                power -= 1
-        elif ((TargetMasses[0]-float(bodyMasses[0])) > 0 and currentDerivatives[0][0] > 0) or ((TargetMasses[0]-float(bodyMasses[0])) < 0 and currentDerivatives[0][0] < 0):
-            while abs(TargetMasses[0] - float(bodyMasses[0])) > 10**power:
-                ui.messageBox("check 4")
-                #ui.messageBox("Target Mass: " + str(TargetMasses[0]) + " Body Mass: " + str(bodyMasses[0]))
-                power = int(math.log10(abs(TargetMasses[0] - float(bodyMasses[0]))))
-                #ui.messageBox("Power: " + str(power))
-                inc = 10**(power-1)/currentDerivatives[0][0]
-                #ui.messageBox("Increment: " + str(inc))
-                #ui.messageBox("Current parameter value: " + str(unitsMgr.formatInternalValue(userParams[0].value, 'in', False)))
-                #ui.messageBox("New parameter value: " + str(unitsMgr.formatInternalValue(userParams[0].value, 'in', False)))
-                userParams.itemByName(str(userParams[0].name)).expression = str(float(unitsMgr.formatInternalValue(userParams[0].value, 'in', False)) + inc) + ' in'
-                #ui.messageBox("Newnew parameter value: " + str(unitsMgr.formatInternalValue(userParams[0].value, 'in', False)))
-                #ui.messageBox('New mass: ' + str(bodyMasses[0]))
-                bodyMasses[0] = unitsMgr.formatInternalValue(physProps.mass, 'kg', False)
-                #time.sleep(1)
-                ui.messageBox("New parameter value: " + str(unitsMgr.formatInternalValue(userParams[0].value, 'in', False)))
-                ui.messageBox("Updated Body Mass: " + str(bodyMasses[0]))
-                currentDerivatives[0][0] = FindDerivative(userParams[0])[0]
-                power -= 1
-            if TargetMasses[0]-float(bodyMasses[0]) == 0:
-                ui.messageBox("check 5")
-                return
-            else:
-                ui.messageBox("check 6")
-                ui.messageBox('Parameter updated to ' + unitsMgr.formatInternalValue(userParams[0].value, 'in', True))
-                ui.messageBox("Target Mass: " + str(TargetMasses[0]) + " Body Mass: " + str(bodyMasses[0]))
-                power -= 1
-                return
-    ui.messageBox("check 7")
-    PaletteUpdate()
-    return
+    #ui.messageBox("Generated points: " + str(list1))
+    #for i in range(1, NumSteps+1):
+        #list1 = map(lambda x: x+inc, range(int(userParams[0].value)-((int(NumSteps)//2)*(int(math.log10(userParams[0].value))-1)), int(userParams[0].value)+((int(NumSteps)//2)*(int(math.log10(userParams[0].value))-1))+1, inc))
+        #userParams[0].value+((NumSteps/2)*(int(math.log10(userParams[0].value)-1))), int(math.log10(userParams[0].value))-1
+        #ui.messageBox("Value: " + str(int(userParams[0].value)-((int(NumSteps)//2)*(int(math.log10(userParams[0].value))-1))))
+        #ui.messageBox("Generating point at " + str(userParams[0].name) + " = " + str(i))
+        #userParams.itemByName(str(userParams[0].name)).expression = str(i) + ' in'
+        #userParams.itemByName(str(userParams[0].name)).expression = str(float(unitsMgr.formatInternalValue(userParams[0].value, lenUnits, False))+1) + ' in'
 
 #Event handler for the cameraChanged event to remove the palette, allowing for the Add-In to be re-run without restarting Fusion 360.
 class MyCameraMovedHandler(adsk.core.CameraEventHandler):
@@ -181,8 +151,8 @@ class MyHTMLEventHandler(adsk.core.HTMLEventHandler):
                 # PaletteUpdate()
                 #FindDerivative(userParams[1].name)
                 #AllDerivatives()
-                iterate()
-
+                #iterate()
+                GeneratePoints(10)
                 PaletteUpdate()
                 del Firing
                 # ui.messageBox(Firing)
@@ -260,3 +230,71 @@ def stop(context):
 
 #         else:
 #             ui.messageBox('Global parameter not found.')
+
+    # Sample iterative function to adjust parameter to reach target mass
+
+# def iterate():
+#     bodyMasses = []
+#     for j in range(0, root.bRepBodies.count):
+#         body = root.bRepBodies.item(j)
+#         physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties)
+#         mass = unitsMgr.formatInternalValue(physProps.mass, 'kg', False) #Converts mass from document mass units to kg
+#         bodyMasses.append(mass)
+#     ui.messageBox("Body Masses: " + str(bodyMasses))
+
+#     currentDerivatives = AllDerivatives()
+#     power = -1
+
+#     importlib.reload(LCA_Interaction) # Reload the LCA_Interaction file to get updated target mass values
+#     TargetMasses = LCA_Interaction.TargetMasses() # Get the updated target mass values from the LCA_Interaction file
+#     ui.messageBox("Target Masses: " + str(TargetMasses[0]))
+
+#     while abs(TargetMasses[0]-float(bodyMasses[0])) > 0.1:
+#         #ui.messageBox("Current derivative: " +  str(currentDerivatives[0][0]))
+#         if ((TargetMasses[0]-float(bodyMasses[0])) > 0 and currentDerivatives[0][0] < 0) or ((TargetMasses[0]-float(bodyMasses[0])) < 0 and currentDerivatives[0][0] > 0):
+#             while TargetMasses[0] - float(bodyMasses[0]) > 10**power:
+#                 ui.messageBox("check 1")
+#                 power = int(math.log10(abs(TargetMasses[0] - float(bodyMasses[0]))))
+#                 ui.messageBox("Power: " + str(power))
+#                 inc = -10**(power-1)/currentDerivatives[0][0]
+#                 userParams.itemByName(str(userParams[0].name)).expression = str(float(unitsMgr.formatInternalValue(userParams[0].value, 'in', False))+inc) + ' in'
+#                 bodyMasses[0] = unitsMgr.formatInternalValue(physProps.mass, 'kg', False)
+#                 currentDerivatives[0][0] = FindDerivative(userParams[0])[0]
+#             if TargetMasses[0]-float(bodyMasses[0]) == 0:
+#                 ui.messageBox("check 2")
+#                 return
+#             else:
+#                 ui.messageBox("check 3")
+#                 ui.messageBox("Target Mass: " + str(TargetMasses[0]) + " Body Mass: " + str(bodyMasses[0]))
+#                 power -= 1
+#         elif ((TargetMasses[0]-float(bodyMasses[0])) > 0 and currentDerivatives[0][0] > 0) or ((TargetMasses[0]-float(bodyMasses[0])) < 0 and currentDerivatives[0][0] < 0):
+#             while abs(TargetMasses[0] - float(bodyMasses[0])) > 10**power:
+#                 ui.messageBox("check 4")
+#                 #ui.messageBox("Target Mass: " + str(TargetMasses[0]) + " Body Mass: " + str(bodyMasses[0]))
+#                 power = int(math.log10(abs(TargetMasses[0] - float(bodyMasses[0]))))
+#                 #ui.messageBox("Power: " + str(power))
+#                 inc = 10**(power-1)/currentDerivatives[0][0]
+#                 #ui.messageBox("Increment: " + str(inc))
+#                 #ui.messageBox("Current parameter value: " + str(unitsMgr.formatInternalValue(userParams[0].value, 'in', False)))
+#                 #ui.messageBox("New parameter value: " + str(unitsMgr.formatInternalValue(userParams[0].value, 'in', False)))
+#                 userParams.itemByName(str(userParams[0].name)).expression = str(float(unitsMgr.formatInternalValue(userParams[0].value, 'in', False)) + inc) + ' in'
+#                 #ui.messageBox("Newnew parameter value: " + str(unitsMgr.formatInternalValue(userParams[0].value, 'in', False)))
+#                 #ui.messageBox('New mass: ' + str(bodyMasses[0]))
+#                 bodyMasses[0] = unitsMgr.formatInternalValue(physProps.mass, 'kg', False)
+#                 #time.sleep(1)
+#                 ui.messageBox("New parameter value: " + str(unitsMgr.formatInternalValue(userParams[0].value, 'in', False)))
+#                 ui.messageBox("Updated Body Mass: " + str(bodyMasses[0]))
+#                 currentDerivatives[0][0] = FindDerivative(userParams[0])[0]
+#                 power -= 1
+#             if TargetMasses[0]-float(bodyMasses[0]) == 0:
+#                 ui.messageBox("check 5")
+#                 return
+#             else:
+#                 ui.messageBox("check 6")
+#                 ui.messageBox('Parameter updated to ' + unitsMgr.formatInternalValue(userParams[0].value, 'in', True))
+#                 ui.messageBox("Target Mass: " + str(TargetMasses[0]) + " Body Mass: " + str(bodyMasses[0]))
+#                 power -= 1
+#                 return
+#     ui.messageBox("check 7")
+#     PaletteUpdate()
+#     return
