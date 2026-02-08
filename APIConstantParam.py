@@ -17,8 +17,8 @@ userParams = des.userParameters
 root = des.rootComponent
 
 # Specifying units
-lenUnits = 'in'  # inches
-massUnits = 'kg'  # kilograms
+lenUnits = 'in'  # inches (can be changed to 'mm' for millimeters, etc.)
+massUnits = 'kg'  # kilograms (can be changed to 'g' for grams, etc.)
 
 palette = ui.palettes.add('partMasses', 'Part Masses', 'palette.html', False, True, True, 300, 200, True)
 # The True/Falses control whether the palette is visible, if a 'Close' button is shown, and if the palette can be resized
@@ -44,10 +44,10 @@ def PaletteUpdate():
         for j in range(0, root.bRepBodies.count):
             body = root.bRepBodies.item(j)
             physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties)
-            mass = unitsMgr.formatInternalValue(physProps.mass, 'kg', False) #Converts mass from document mass units to kg
+            mass = unitsMgr.formatInternalValue(physProps.mass, massUnits, False) #Converts mass from document mass units to selected mass units
             bodyMasses.append(mass)
             # ui.messageBox('Body' + str(j+1) + ' has a mass of ' + str(bodyMasses[j]) + " kg")
-            massesStrText += '<b>' + root.bRepBodies[j].name + ' mass:</b> ' + str(bodyMasses[j]) + ' kg' + "<br />" #The ending is for HTML line breaks
+            massesStrText += '<b>' + root.bRepBodies[j].name + ' mass:</b> ' + str(bodyMasses[j]) + ' ' + str(massUnits) + "<br />" #The ending is for HTML line breaks
             #massesStrText += '<b>Body ' + str(j+1) + '</b> mass: ' + str(bodyMasses[j]) + ' kg' + "<br />" #The ending is for HTML line breaks
             palette.sendInfoToHTML('send', massesStrText)
 
@@ -68,17 +68,17 @@ def FindDerivative(paramName):
         for j in range(0, root.bRepBodies.count):
             body = root.bRepBodies.item(j)
             physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties)
-            mass = unitsMgr.formatInternalValue(physProps.mass, 'kg', False) #Converts mass from document mass units to kg
+            mass = unitsMgr.formatInternalValue(physProps.mass, massUnits, False) #Converts mass from document mass units to selected mass units
             bodyMasses.append(mass)
         
         #Set the new value for the global parameter
-        userParams.itemByName(str(paramName.name)).expression = str((float(unitsMgr.formatInternalValue(paramName.value, 'in', False))+0.0001)) + ' in'
+        userParams.itemByName(str(paramName.name)).expression = str((float(unitsMgr.formatInternalValue(paramName.value, lenUnits, False))+0.0001)) + ' ' + str(lenUnits)
 
         #Find new body masses after parameter change
         for j in range(0, root.bRepBodies.count):
             body = root.bRepBodies.item(j)
             physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties)
-            mass = unitsMgr.formatInternalValue(physProps.mass, 'kg', False) #Converts mass from document mass units to kg
+            mass = unitsMgr.formatInternalValue(physProps.mass, massUnits, False) #Converts mass from document mass units to selected mass units
             bodyMassesNew.append(mass)
 
         #Calculate and display derivative of mass with respect to parameter
@@ -120,7 +120,7 @@ def GeneratePoints(NumSteps, SelectedCombo):
     #ui.messageBox("Generating points for " + str(userParams[0].name) + " from " + str(p1) + " to " + str(p1end) + " with increment of " + str(inc))
     while p1 != p1end and p1 > 0:
         #ui.messageBox("Generating points at " + str(userParams[0].name) + " = " + str(p1))
-        userParams.itemByName(str(userParams[0].name)).expression = str(p1) + ' in'
+        userParams.itemByName(str(userParams[0].name)).expression = str(p1) + ' ' + str(lenUnits)
         
         p2 = round(p2Center+(NumSteps//2)*10**(int(math.log10(p2Center))-1), 5)
         p2end = round(p2Center-(NumSteps//2)*10**(int(math.log10(p2Center))-1), 5)
@@ -133,17 +133,17 @@ def GeneratePoints(NumSteps, SelectedCombo):
         #ui.messageBox("Generating points for " + str(userParams[1].name) + " from " + str(p2) + " to " + str(p2end) + " with increment of " + str(inc))
         while p2 != p2end and p2 > 0:
             #ui.messageBox("Generating point at " + str(userParams[1].name) + " = " + str(p2))
-            userParams.itemByName(str(userParams[1].name)).expression = str(p2) + ' in'
+            userParams.itemByName(str(userParams[1].name)).expression = str(p2) + ' ' + str(lenUnits)
 
             p3 = p1
             while p3 >= p1 and p3 <= p1+1:
-                userParams.itemByName(str(userParams[2].name)).expression = str(p3) + ' in'
+                userParams.itemByName(str(userParams[2].name)).expression = str(p3) + ' ' + str(lenUnits)
 
                 masses = []
                 for i in range(0, int(root.bRepBodies.count)):
                     body = root.bRepBodies.item(i)
                     physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties)
-                    mass = unitsMgr.formatInternalValue(physProps.mass, 'kg', False) #Converts mass from document mass units to kg
+                    mass = unitsMgr.formatInternalValue(physProps.mass, massUnits, False) #Converts mass from document mass units to selected mass units
                     masses.append(mass)
 
                 # Combos.append([p1, p2, p3])
