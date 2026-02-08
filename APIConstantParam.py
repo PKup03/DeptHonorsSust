@@ -4,8 +4,10 @@ import json, os, adsk.cam
 import math, time, csv
 from .LCA_Interaction import Parameters
 from .LCA_Interaction import TargetMasses
-datafilename = 'data123.csv'
-#from .LCA_Interaction import 
+
+#File stuff
+script_dir = os.path.dirname(os.path.abspath(__file__))
+filepath = os.path.join(script_dir, "output.csv")
 
 # global set of event handlers to keep them referenced
 handlers = []
@@ -109,7 +111,7 @@ def GeneratePoints(NumSteps, SelectedCombo):
     p2Center = float(Combos[SelectedCombo][1])
     p1 = round(p1Center+(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
     p1end = round(p1Center-(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
-    Combos = []
+    Combos = [['Param1', 'Param2', 'Param3', 'Body 1', 'Body 2', 'Body 3']]
     if int(math.log10(p1Center))-1 < 0:
         mult[0] = -1
     elif int(math.log10(p1Center))-1 > 0:
@@ -133,7 +135,7 @@ def GeneratePoints(NumSteps, SelectedCombo):
         #ui.messageBox("Generating points for " + str(userParams[1].name) + " from " + str(p2) + " to " + str(p2end) + " with increment of " + str(inc))
         while p2 != p2end and p2 > 0:
             #ui.messageBox("Generating point at " + str(userParams[1].name) + " = " + str(p2))
-            userParams.itemByName(str(userParams[1].name)).expression = str(p2) + ' ' + str(lenUnits)
+            userParams.itemByName(str(userParams[1].name)).expression = str(p2) + ' in'
 
             p3 = p1
             while p3 >= p1 and p3 <= p1+1:
@@ -147,20 +149,16 @@ def GeneratePoints(NumSteps, SelectedCombo):
                     masses.append(mass)
 
                 # Combos.append([p1, p2, p3])
-                Combos.append([p1, p2, p3, masses])
-                p3 += 0.1
+                Combos.append([p1, p2, p3] + masses)
+                p3 = round(p3+0.1, 5)
             inc = round(int(mult[1])*10**(int(math.log10(p2Center))-1), 5)
             p2 = round(p2+inc, 5)
         inc = round(int(mult[0])*10**(int(math.log10(p1Center))-1), 5)
         p1 = round(p1+inc, 5)
-    with open(datafilename, 'w', newline='') as file:
+    #ui.messageBox("Generated points: " + str(Combos))
+    with open(filepath, 'w+', newline='') as file:
         writer = csv.writer(file)
-        # # Write header if needed
-        # writer.writerow(['Param1', 'Param2', 'Param3', 'Masses'])
-        for row in Combos:
-            # Flatten: p1, p2, p3, mass1, mass2, ...
-            flat_row = [row[0], row[1], row[2]] + row[3]
-            writer.writerow(flat_row)
+        writer.writerows(Combos)
 
     # with open(datafilename, 'w', newline = '') as file:
     #     for row in Combos:
@@ -206,7 +204,7 @@ class MyHTMLEventHandler(adsk.core.HTMLEventHandler):
                 #FindDerivative(userParams[1].name)
                 #AllDerivatives()
                 #iterate()
-                GeneratePoints(10, 0)
+                GeneratePoints(16, 0)
                 PaletteUpdate()
                 del Firing
                 # ui.messageBox(Firing)
