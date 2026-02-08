@@ -1,9 +1,10 @@
 ### Live code, check below for test code
 import adsk.core, traceback, adsk.fusion, importlib
 import json, os, adsk.cam
-import math, time
+import math, time, csv
 from .LCA_Interaction import Parameters
 from .LCA_Interaction import TargetMasses
+datafilename = 'data123.csv'
 #from .LCA_Interaction import 
 
 # global set of event handlers to keep them referenced
@@ -93,28 +94,81 @@ def AllDerivatives():
     #ui.messageBox(str(currentDerivatives))
     return currentDerivatives
 
-def GeneratePoints(NumSteps):
+Combos = [[]]
+mult = []
+for i in range(0, userParams.count):
+    Combos[0].append(unitsMgr.formatInternalValue(userParams[i].value, lenUnits, False))
+    mult.append(0)
+ui.messageBox("Combos: " + str(Combos))
+
+def GeneratePoints(NumSteps, SelectedCombo):
     #Create a range of points around the current parameter value with a step size one decade smaller than the parameter value
-    p1 = round(userParams[0].value-(NumSteps//2)*(int(math.log10(userParams[0].value))-1), 5)
-    p1end = round(userParams[0].value+(NumSteps//2)*(int(math.log10(userParams[0].value))-1), 5)
-    list1 = []
-    if int(math.log10(userParams[0].value))-1 < 0:
-        mult = -1
-    elif int(math.log10(userParams[0].value))-1 > 0:
-        mult = 1
+    global Combos
+    global mult
+    p1Center = float(Combos[SelectedCombo][0])
+    p2Center = float(Combos[SelectedCombo][1])
+    p1 = round(p1Center+(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
+    p1end = round(p1Center-(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
+    Combos = []
+    if int(math.log10(p1Center))-1 < 0:
+        mult[0] = -1
+    elif int(math.log10(p1Center))-1 > 0:
+        mult[0] = 1
     else:
         return
-    inc = round(mult*10**(int(math.log10(userParams[0].value))-1), 5)
-    ui.messageBox("Generating points for " + str(userParams[0].name) + " from " + str(p1) + " to " + str(p1end) + " with increment of " + str(inc))
-    while p1 != p1end:
-        #ui.messageBox("Generating point at " + str(userParams[0].name) + " = " + str(p))
+    inc = round(int(mult[0])*10**(int(math.log10(p1Center))-1), 5)
+    #ui.messageBox("Generating points for " + str(userParams[0].name) + " from " + str(p1) + " to " + str(p1end) + " with increment of " + str(inc))
+    while p1 != p1end and p1 > 0:
+        #ui.messageBox("Generating points at " + str(userParams[0].name) + " = " + str(p1))
         userParams.itemByName(str(userParams[0].name)).expression = str(p1) + ' in'
-        body = root.bRepBodies.item(0)
-        physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties)
-        mass = unitsMgr.formatInternalValue(physProps.mass, 'kg', False) #Converts mass from document mass units to kg
         
-        list1.append([p1, mass])
+        p2 = round(p2Center+(NumSteps//2)*10**(int(math.log10(p2Center))-1), 5)
+        p2end = round(p2Center-(NumSteps//2)*10**(int(math.log10(p2Center))-1), 5)
+        if int(math.log10(p2Center))-1 < 0:
+            mult[1] = -1
+        elif int(math.log10(p2Center))-1 > 0:
+            mult[1] = 1
+        else:
+            return
+        #ui.messageBox("Generating points for " + str(userParams[1].name) + " from " + str(p2) + " to " + str(p2end) + " with increment of " + str(inc))
+        while p2 != p2end and p2 > 0:
+            #ui.messageBox("Generating point at " + str(userParams[1].name) + " = " + str(p2))
+            userParams.itemByName(str(userParams[1].name)).expression = str(p2) + ' in'
+
+            p3 = p1
+            while p3 >= p1 and p3 <= p1+1:
+                userParams.itemByName(str(userParams[2].name)).expression = str(p3) + ' in'
+
+                masses = []
+                for i in range(0, int(root.bRepBodies.count)):
+                    body = root.bRepBodies.item(i)
+                    physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties)
+                    mass = unitsMgr.formatInternalValue(physProps.mass, 'kg', False) #Converts mass from document mass units to kg
+                    masses.append(mass)
+
+                # Combos.append([p1, p2, p3])
+                Combos.append([p1, p2, p3, masses])
+                p3 += 0.1
+            inc = round(int(mult[1])*10**(int(math.log10(p2Center))-1), 5)
+            p2 = round(p2+inc, 5)
+        inc = round(int(mult[0])*10**(int(math.log10(p1Center))-1), 5)
         p1 = round(p1+inc, 5)
+    with open(datafilename, 'w', newline='') as file:
+        writer = csv.writer(file)
+        # # Write header if needed
+        # writer.writerow(['Param1', 'Param2', 'Param3', 'Masses'])
+        for row in Combos:
+            # Flatten: p1, p2, p3, mass1, mass2, ...
+            flat_row = [row[0], row[1], row[2]] + row[3]
+            writer.writerow(flat_row)
+
+    # with open(datafilename, 'w', newline = '') as file:
+    #     for row in Combos:
+    #         # Convert all elements to strings and join with a comma
+    #         line = ",".join(str(item) for item in row)
+    #         # Write the line followed by a newline character
+    #         file.write(line + "\n")
+    #ui.messageBox("Generated points: " + str(list))
 
     #ui.messageBox("Generated points: " + str(list1))
     #for i in range(1, NumSteps+1):
@@ -152,7 +206,7 @@ class MyHTMLEventHandler(adsk.core.HTMLEventHandler):
                 #FindDerivative(userParams[1].name)
                 #AllDerivatives()
                 #iterate()
-                GeneratePoints(10)
+                GeneratePoints(10, 0)
                 PaletteUpdate()
                 del Firing
                 # ui.messageBox(Firing)
