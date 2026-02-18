@@ -22,6 +22,8 @@ root = des.rootComponent
 lenUnits = 'in'  # inches (can be changed to 'mm' for millimeters, etc.)
 massUnits = 'kg'  # kilograms (can be changed to 'g' for grams, etc.)
 
+ParamEdits = ["Y", "Y", "Y", "N"].count("Y") # Number of parameters to be edited by the user
+
 palette = ui.palettes.add('partMasses', 'Part Masses', 'palette.html', False, True, True, 300, 200, True)
 # The True/Falses control whether the palette is visible, if a 'Close' button is shown, and if the palette can be resized
 palette.dockingState = adsk.core.PaletteDockingStates.PaletteDockStateRight
@@ -32,13 +34,6 @@ def PaletteUpdate():
 
     bodyMasses = []
     massesStrText = ""
-    ## Set the new value for the global parameter
-    #importlib.reload(LCA_Interaction) # Reload the LCA_Interaction file to get updated parameter values
-    #Parameters = LCA_Interaction.Parameters() # Get the updated parameter values from the LCA_Interaction file
-    # 'CubeLength' is the name of the Fusion User Parameter to be changed
-    # Paramaters[0] is the new value of the 'CubeLength' parameter from the LCA file
-    #userParams.itemByName(userParams[0].name).expression = str(Parameters[0]) + ' in'
-    #ui.messageBox('Parameter 1 has been set to ' + str(Parameters[1]) + ' in')
 
     if userParams:
 
@@ -103,14 +98,15 @@ for i in range(0, userParams.count):
     mult.append(0)
 ui.messageBox("Combos: " + str(Combos))
 
-def GeneratePoints(NumSteps, SelectedCombo):
+def GeneratePoints(NumPoints, SelectedCombo):
     #Create a range of points around the current parameter value with a step size one decade smaller than the parameter value
     global Combos
     global mult
     p1Center = float(Combos[SelectedCombo][0])
     p2Center = float(Combos[SelectedCombo][1])
-    p1 = round(p1Center+(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
-    p1end = round(p1Center-(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
+    NumSteps = NumPoints**(1/ParamEdits) # Number of points to be generated for each parameter, adjusted for number of parameters being edited
+    p1 = round(p1Center+round(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
+    p1end = round(p1Center-round(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
     Combos = [['Param1', 'Param2', 'Param3', 'Body 1', 'Body 2', 'Body 3']]
     if int(math.log10(p1Center))-1 < 0:
         mult[0] = -1
@@ -124,8 +120,8 @@ def GeneratePoints(NumSteps, SelectedCombo):
         #ui.messageBox("Generating points at " + str(userParams[0].name) + " = " + str(p1))
         userParams.itemByName(str(userParams[0].name)).expression = str(p1) + ' ' + str(lenUnits)
         
-        p2 = round(p2Center+(NumSteps//2)*10**(int(math.log10(p2Center))-1), 5)
-        p2end = round(p2Center-(NumSteps//2)*10**(int(math.log10(p2Center))-1), 5)
+        p2 = round(p2Center+round(NumSteps//2)*10**(int(math.log10(p2Center))-1), 5)
+        p2end = round(p2Center-round(NumSteps//2)*10**(int(math.log10(p2Center))-1), 5)
         if int(math.log10(p2Center))-1 < 0:
             mult[1] = -1
         elif int(math.log10(p2Center))-1 > 0:
@@ -159,23 +155,6 @@ def GeneratePoints(NumSteps, SelectedCombo):
     with open(filepath, 'w+', newline='') as file:
         writer = csv.writer(file)
         writer.writerows(Combos)
-
-    # with open(datafilename, 'w', newline = '') as file:
-    #     for row in Combos:
-    #         # Convert all elements to strings and join with a comma
-    #         line = ",".join(str(item) for item in row)
-    #         # Write the line followed by a newline character
-    #         file.write(line + "\n")
-    #ui.messageBox("Generated points: " + str(list))
-
-    #ui.messageBox("Generated points: " + str(list1))
-    #for i in range(1, NumSteps+1):
-        #list1 = map(lambda x: x+inc, range(int(userParams[0].value)-((int(NumSteps)//2)*(int(math.log10(userParams[0].value))-1)), int(userParams[0].value)+((int(NumSteps)//2)*(int(math.log10(userParams[0].value))-1))+1, inc))
-        #userParams[0].value+((NumSteps/2)*(int(math.log10(userParams[0].value)-1))), int(math.log10(userParams[0].value))-1
-        #ui.messageBox("Value: " + str(int(userParams[0].value)-((int(NumSteps)//2)*(int(math.log10(userParams[0].value))-1))))
-        #ui.messageBox("Generating point at " + str(userParams[0].name) + " = " + str(i))
-        #userParams.itemByName(str(userParams[0].name)).expression = str(i) + ' in'
-        #userParams.itemByName(str(userParams[0].name)).expression = str(float(unitsMgr.formatInternalValue(userParams[0].value, lenUnits, False))+1) + ' in'
 
 #Event handler for the cameraChanged event to remove the palette, allowing for the Add-In to be re-run without restarting Fusion 360.
 class MyCameraMovedHandler(adsk.core.CameraEventHandler):
