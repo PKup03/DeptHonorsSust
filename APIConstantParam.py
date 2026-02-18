@@ -23,6 +23,7 @@ lenUnits = 'in'  # inches (can be changed to 'mm' for millimeters, etc.)
 massUnits = 'kg'  # kilograms (can be changed to 'g' for grams, etc.)
 
 ParamEdits = ["Y", "Y", "Y", "N"].count("Y") # Number of parameters to be edited by the user
+ui.messageBox("Number of parameters being edited: " + str(ParamEdits))
 
 palette = ui.palettes.add('partMasses', 'Part Masses', 'palette.html', False, True, True, 300, 200, True)
 # The True/Falses control whether the palette is visible, if a 'Close' button is shown, and if the palette can be resized
@@ -107,7 +108,7 @@ def GeneratePoints(NumPoints, SelectedCombo):
     NumSteps = NumPoints**(1/ParamEdits) # Number of points to be generated for each parameter, adjusted for number of parameters being edited
     p1 = round(p1Center+round(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
     p1end = round(p1Center-round(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
-    Combos = [['Param1', 'Param2', 'Param3', 'Body 1', 'Body 2', 'Body 3']]
+    Combos = [[str(userParams[0].name), str(userParams[1].name), str(userParams[2].name), 'Body 1', 'Body 2', 'Body 3']]
     if int(math.log10(p1Center))-1 < 0:
         mult[0] = -1
     elif int(math.log10(p1Center))-1 > 0:
@@ -183,7 +184,7 @@ class MyHTMLEventHandler(adsk.core.HTMLEventHandler):
                 #FindDerivative(userParams[1].name)
                 #AllDerivatives()
                 #iterate()
-                GeneratePoints(16, 0)
+                GeneratePoints(9, 0)
                 PaletteUpdate()
                 del Firing
                 # ui.messageBox(Firing)
