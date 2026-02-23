@@ -103,6 +103,8 @@ def GeneratePoints(NumPoints, SelectedCombo):
     #Create a range of points around the current parameter value with a step size one decade smaller than the parameter value
     global Combos
     global mult
+    global csvlen
+    global writer
     p1Center = float(Combos[SelectedCombo][0])
     p2Center = float(Combos[SelectedCombo][1])
     NumSteps = NumPoints**(1/ParamEdits) # Number of points to be generated for each parameter, adjusted for number of parameters being edited
@@ -156,6 +158,8 @@ def GeneratePoints(NumPoints, SelectedCombo):
     with open(filepath, 'w+', newline='') as file:
         writer = csv.writer(file)
         writer.writerows(Combos)
+        csvlen = len(Combos)
+
 
 #Event handler for the cameraChanged event to remove the palette, allowing for the Add-In to be re-run without restarting Fusion 360.
 class MyCameraMovedHandler(adsk.core.CameraEventHandler):
@@ -172,6 +176,7 @@ class MyHTMLEventHandler(adsk.core.HTMLEventHandler):
     def __init__(self):
         super().__init__()
     def notify(self, args):
+        global csvlen, Combos, writer
         try:
             htmlArgs = adsk.core.HTMLEventArgs.cast(args)
             Firing = json.loads(htmlArgs.data)
@@ -184,8 +189,18 @@ class MyHTMLEventHandler(adsk.core.HTMLEventHandler):
                 #FindDerivative(userParams[1].name)
                 #AllDerivatives()
                 #iterate()
-                GeneratePoints(9, 0)
+                GeneratePoints(27, 0)
                 PaletteUpdate()
+                ui.messageBox("Check 1")
+                ui.messageBox(str(csvlen) + " vs " + str(len(Combos)))
+                while csvlen == len(Combos) and csvlen != 0:
+                    with open(filepath, 'r') as file:
+                        my_reader = csv.reader(file, delimiter=',')
+                        csvlen = len(list(my_reader))
+                        ui.messageBox(str(csvlen) + " vs " + str(len(Combos)))
+                    if csvlen != len(Combos) and csvlen != 0:
+                        GeneratePoints(27, 9)
+                        ui.messageBox("Data generation complete. Generated " + str(len(Combos)) + " points.")
                 del Firing
                 # ui.messageBox(Firing)
         except:
