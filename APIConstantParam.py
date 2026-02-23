@@ -32,12 +32,10 @@ palette.isVisible = True
 
 def PaletteUpdate():
     # Code to react to the event.
-
     bodyMasses = []
     massesStrText = ""
 
     if userParams:
-
         #Determine mass of each body in the component
         for j in range(0, root.bRepBodies.count):
             body = root.bRepBodies.item(j)
@@ -51,46 +49,6 @@ def PaletteUpdate():
 
     else:
         ui.messageBox('Global parameter not found.')
-
-def FindDerivative(paramName):
-        bodyMasses = []
-        bodyMassesNew = []
-        BodyDerivatives = []
-
-        # ## Set the new value for the global parameter
-        # importlib.reload(LCA_Interaction) # Reload the LCA_Interaction file to get updated parameter values
-        # Parameters = LCA_Interaction.Parameters() # Get the updated parameter values from the LCA_Interaction file
-        # userParams.itemByName(str(paramName.name)).expression = str(paramName.value) + ' in'
-
-        #Find initial mass of each body in the component
-        for j in range(0, root.bRepBodies.count):
-            body = root.bRepBodies.item(j)
-            physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties)
-            mass = unitsMgr.formatInternalValue(physProps.mass, massUnits, False) #Converts mass from document mass units to selected mass units
-            bodyMasses.append(mass)
-        
-        #Set the new value for the global parameter
-        userParams.itemByName(str(paramName.name)).expression = str((float(unitsMgr.formatInternalValue(paramName.value, lenUnits, False))+0.0001)) + ' ' + str(lenUnits)
-
-        #Find new body masses after parameter change
-        for j in range(0, root.bRepBodies.count):
-            body = root.bRepBodies.item(j)
-            physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties)
-            mass = unitsMgr.formatInternalValue(physProps.mass, massUnits, False) #Converts mass from document mass units to selected mass units
-            bodyMassesNew.append(mass)
-
-        #Calculate and display derivative of mass with respect to parameter
-        for j in range(0, root.bRepBodies.count):
-            BodyDerivatives.append((float(bodyMassesNew[j])-float(bodyMasses[j]))/0.0001)
-        #ui.messageBox('Derivative of ' + root.bRepBodies[0].name + ' mass with respect to ' + paramName.name + ' is ' + str(BodyDerivatives[0]) + ' kg/in')
-        return BodyDerivatives
-
-def AllDerivatives():
-    currentDerivatives = []
-    for i in range(0, userParams.count-1):
-        currentDerivatives.append(FindDerivative(userParams[i]))
-    #ui.messageBox(str(currentDerivatives))
-    return currentDerivatives
 
 Combos = [[]]
 mult = []
@@ -247,10 +205,8 @@ def stop(context):
 #         super().__init__()
 #     def notify(self, args):
 #         eventArgs = adsk.core.CommandEventArgs.cast(args)
-
 #         # Code to react to the event.
 #         app.log('In MyDocumentSavedHandler event handler.')
-
 #         bodyMasses = []
 #         massesStrText = ""
 #         ## Set the new value for the global parameter
@@ -260,11 +216,8 @@ def stop(context):
 #         # Paramaters[0] is the new value of the 'CubeLength' parameter from the LCA file
 #         userParams.itemByName('CubeLength').expression = str(Parameters[0]) + ' in'
 #         ui.messageBox('Parameter 1 has been set to ' + str(Parameters[1]) + ' in')
-
 #         if userParams:
-
 #             numBodies = root.bRepBodies.count #Get number of bodies in the component
-
 #             #Determine mass of each body in the component
 #             for j in range(0, numBodies):
 #                 body = root.bRepBodies.item(j)
@@ -274,12 +227,50 @@ def stop(context):
 #                 # ui.messageBox('Body' + str(j+1) + ' has a mass of ' + str(bodyMasses[j]) + " kg")
 #                 massesStrText += '<b>Body ' + str(j+1) + '</b> mass: ' + str(bodyMasses[j]) + ' kg' + "<br />" #The ending is for HTML line breaks
 #                 palette.sendInfoToHTML('send', massesStrText)
-
 #         else:
 #             ui.messageBox('Global parameter not found.')
 
-    # Sample iterative function to adjust parameter to reach target mass
 
+    #Sample function to find the derivative of mass with respect to a parameter
+# def FindDerivative(paramName):
+#         bodyMasses = []
+#         bodyMassesNew = []
+#         BodyDerivatives = []
+#         # ## Set the new value for the global parameter
+#         # importlib.reload(LCA_Interaction) # Reload the LCA_Interaction file to get updated parameter values
+#         # Parameters = LCA_Interaction.Parameters() # Get the updated parameter values from the LCA_Interaction file
+#         # userParams.itemByName(str(paramName.name)).expression = str(paramName.value) + ' in'
+#         #Find initial mass of each body in the component
+#         for j in range(0, root.bRepBodies.count):
+#             body = root.bRepBodies.item(j)
+#             physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties)
+#             mass = unitsMgr.formatInternalValue(physProps.mass, massUnits, False) #Converts mass from document mass units to selected mass units
+#             bodyMasses.append(mass)
+#         #Set the new value for the global parameter
+#         userParams.itemByName(str(paramName.name)).expression = str((float(unitsMgr.formatInternalValue(paramName.value, lenUnits, False))+0.0001)) + ' ' + str(lenUnits)
+#         #Find new body masses after parameter change
+#         for j in range(0, root.bRepBodies.count):
+#             body = root.bRepBodies.item(j)
+#             physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties)
+#             mass = unitsMgr.formatInternalValue(physProps.mass, massUnits, False) #Converts mass from document mass units to selected mass units
+#             bodyMassesNew.append(mass)
+#         #Calculate and display derivative of mass with respect to parameter
+#         for j in range(0, root.bRepBodies.count):
+#             BodyDerivatives.append((float(bodyMassesNew[j])-float(bodyMasses[j]))/0.0001)
+#         #ui.messageBox('Derivative of ' + root.bRepBodies[0].name + ' mass with respect to ' + paramName.name + ' is ' + str(BodyDerivatives[0]) + ' kg/in')
+#         return BodyDerivatives
+
+
+    #Sample function to find derivative of mass for all bodies with respect to parameters being changed
+# def AllDerivatives():
+#     currentDerivatives = []
+#     for i in range(0, userParams.count-1):
+#         currentDerivatives.append(FindDerivative(userParams[i]))
+#     #ui.messageBox(str(currentDerivatives))
+#     return currentDerivatives
+
+
+    # Sample iterative function to adjust parameter to reach target mass
 # def iterate():
 #     bodyMasses = []
 #     for j in range(0, root.bRepBodies.count):
@@ -288,14 +279,11 @@ def stop(context):
 #         mass = unitsMgr.formatInternalValue(physProps.mass, 'kg', False) #Converts mass from document mass units to kg
 #         bodyMasses.append(mass)
 #     ui.messageBox("Body Masses: " + str(bodyMasses))
-
 #     currentDerivatives = AllDerivatives()
 #     power = -1
-
 #     importlib.reload(LCA_Interaction) # Reload the LCA_Interaction file to get updated target mass values
 #     TargetMasses = LCA_Interaction.TargetMasses() # Get the updated target mass values from the LCA_Interaction file
 #     ui.messageBox("Target Masses: " + str(TargetMasses[0]))
-
 #     while abs(TargetMasses[0]-float(bodyMasses[0])) > 0.1:
 #         #ui.messageBox("Current derivative: " +  str(currentDerivatives[0][0]))
 #         if ((TargetMasses[0]-float(bodyMasses[0])) > 0 and currentDerivatives[0][0] < 0) or ((TargetMasses[0]-float(bodyMasses[0])) < 0 and currentDerivatives[0][0] > 0):
