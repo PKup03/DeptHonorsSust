@@ -6,8 +6,9 @@ from .LCA_Interaction import Parameters
 from .LCA_Interaction import TargetMasses
 
 #File stuff
-script_dir = os.path.dirname(os.path.abspath(__file__))
-filepath = os.path.join(script_dir, "output.csv")
+# script_dir = os.path.dirname(os.path.abspath(__file__)) #For a relative filepath to the CSV file (uses active directory)
+script_dir = "C:/Users/pksc8/Box/Mabey Research Group Files/CAD Sustainability Optimization" #For a fixed filepath to cloud storage using Box tools
+filepath = os.path.join(script_dir, "Coffee_cup_data.csv") #Name of the CSV file to be created with parameter values and body masses
 
 # global set of event handlers to keep them referenced
 handlers = []
@@ -46,7 +47,6 @@ def PaletteUpdate():
             massesStrText += '<b>' + root.bRepBodies[j].name + ' mass:</b> ' + str(bodyMasses[j]) + ' ' + str(massUnits) + "<br />" #The ending is for HTML line breaks
             #massesStrText += '<b>Body ' + str(j+1) + '</b> mass: ' + str(bodyMasses[j]) + ' kg' + "<br />" #The ending is for HTML line breaks
             palette.sendInfoToHTML('send', massesStrText)
-
     else:
         ui.messageBox('Global parameter not found.')
 
@@ -68,7 +68,11 @@ def GeneratePoints(NumPoints, SelectedCombo):
     NumSteps = NumPoints**(1/ParamEdits) # Number of points to be generated for each parameter, adjusted for number of parameters being edited
     p1 = round(p1Center+round(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
     p1end = round(p1Center-round(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
-    Combos = [[str(userParams[0].name), str(userParams[1].name), str(userParams[2].name), 'Body 1', 'Body 2', 'Body 3']]
+    Combos = [[str(userParams[0].name), str(userParams[1].name), str(userParams[2].name), 'Mass_cup', 'Mass_lid', 'Mass_packaging']]
+    # for i in range(0, int(userParams.count)-1):
+    #     Combos[0].append(str(userParams[i].name))
+    # for i in range(0, int(root.bRepBodies.count)-1):
+    #     Combos[0].append("Mass_"+str(root.bRepBodies.item(i).name))
     if int(math.log10(p1Center))-1 < 0:
         mult[0] = -1
     elif int(math.log10(p1Center))-1 > 0:
@@ -147,18 +151,19 @@ class MyHTMLEventHandler(adsk.core.HTMLEventHandler):
                 #FindDerivative(userParams[1].name)
                 #AllDerivatives()
                 #iterate()
-                GeneratePoints(27, 0)
+                GeneratePoints(1000, 0)
                 PaletteUpdate()
                 ui.messageBox("Check 1")
                 ui.messageBox(str(csvlen) + " vs " + str(len(Combos)))
-                while csvlen == len(Combos) and csvlen != 0:
-                    with open(filepath, 'r') as file:
-                        my_reader = csv.reader(file, delimiter=',')
-                        csvlen = len(list(my_reader))
-                        ui.messageBox(str(csvlen) + " vs " + str(len(Combos)))
-                    if csvlen != len(Combos) and csvlen != 0:
-                        GeneratePoints(27, 9)
-                        ui.messageBox("Data generation complete. Generated " + str(len(Combos)) + " points.")
+                # while csvlen == len(Combos) and csvlen != 0:
+                #     with open(filepath, 'r') as file:
+                #         my_reader = csv.reader(file, delimiter=',')
+                #         csvlen = len(list(my_reader))
+                #         ui.messageBox(str(csvlen) + " vs " + str(len(Combos)))
+                #     if csvlen != len(Combos) and csvlen != 0:
+                #         GeneratePoints(27, 9)
+                #         PaletteUpdate()
+                #         ui.messageBox("Data generation complete. Generated " + str(len(Combos)) + " points.")
                 del Firing
                 # ui.messageBox(Firing)
         except:
