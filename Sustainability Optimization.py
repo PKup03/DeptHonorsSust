@@ -1,16 +1,22 @@
 ### Live code, check below for test code
-import adsk.core, traceback, adsk.fusion, importlib
-import json, os, adsk.cam
-import math, time, csv
-from .LCA_Interaction import Parameters
-from .LCA_Interaction import TargetMasses
+import adsk.core, traceback, adsk.fusion #, adsk.cam
+import json, os
+import math, csv #math is used for the log10 function, csv is used to write to an intermediate CSV file for data storage
 
-#File stuff
-#script_dir = os.path.dirname(os.path.abspath(__file__)) #For a relative filepath to the CSV file (uses active directory)
-script_dir = "C:/Users/pksc8/Box/Mabey Research Group Files/CAD Sustainability Optimization" #For a fixed filepath to cloud storage using Box tools
+### File directory setup - adjust the filepath as needed for your system. The current setup is for a fixed filepath to cloud storage using Box tools, but the commented-out option can be used for a relative filepath to the CSV file (using the active directory).
+script_dir = os.path.dirname(os.path.abspath(__file__)) #For a relative filepath to the CSV file (uses active directory)
+#script_dir = "C:/Users/pksc8/Box/Mabey Research Group Files/CAD Sustainability Optimization" #For a fixed filepath to cloud storage using Box tools
 filepath = os.path.join(script_dir, "Coffee_cup_data.csv") #Name of the CSV file to be created with parameter values and body masses
 
-# global set of event handlers to keep them referenced
+### Specifying units
+lenUnits = 'in'  # inches (can be changed to 'mm' for millimeters, etc.)
+massUnits = 'kg'  # kilograms (can be changed to 'g' for grams, etc.)
+
+### Parameters to be changed in optimization process
+ParamEdits = ["Y", "Y", "Y", "N"] # Marking parameters to be changed with "Y" and parameters to be held constant with "N". The order of the parameters is determined by the order of the parameters in the Fusion model. In this case, the first three parameters in the Fusion model will be changed and the fourth parameter will be held constant.
+#ui.messageBox("Number of parameters being edited: " + str(ParamEdits.count("Y"))) # Display the number of parameters to be edited when starting the add-in, for confirmation
+
+### Global variables
 handlers = []
 app = adsk.core.Application.get()
 ui  = app.userInterface
@@ -18,78 +24,84 @@ des = adsk.fusion.Design.cast(app.activeProduct)
 unitsMgr = des.unitsManager
 userParams = des.userParameters
 root = des.rootComponent
+Combos = [[]] 
+mult = []
+Center = []
 
-# Specifying units
-lenUnits = 'in'  # inches (can be changed to 'mm' for millimeters, etc.)
-massUnits = 'kg'  # kilograms (can be changed to 'g' for grams, etc.)
-
-ParamEdits = ["Y", "Y", "Y", "N"].count("Y") # Number of parameters to be edited by the user
-ui.messageBox("Number of parameters being edited: " + str(ParamEdits))
-
+### Palette setup
 palette = ui.palettes.add('partMasses', 'Part Masses', 'palette.html', False, True, True, 300, 200, True)
 # The True/Falses control whether the palette is visible, if a 'Close' button is shown, and if the palette can be resized
 palette.dockingState = adsk.core.PaletteDockingStates.PaletteDockStateRight
 palette.isVisible = True
 
+### Palette Update Function
+# Function to update the palette with the current body masses, called after points are generated for the updated parameter values.
 def PaletteUpdate():
-    # Code to react to the event.
+    # Initialize variables to blanks.
     bodyMasses = []
     massesStrText = ""
 
-    if userParams:
-        #Determine mass of each body in the component
-        for j in range(0, root.bRepBodies.count):
-            body = root.bRepBodies.item(j)
-            physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties)
-            mass = unitsMgr.formatInternalValue(physProps.mass, massUnits, False) #Converts mass from document mass units to selected mass units
-            bodyMasses.append(mass)
-            # ui.messageBox('Body' + str(j+1) + ' has a mass of ' + str(bodyMasses[j]) + " kg")
-            massesStrText += '<b>' + root.bRepBodies[j].name + ' mass:</b> ' + str(bodyMasses[j]) + ' ' + str(massUnits) + "<br />" #The ending is for HTML line breaks
-            #massesStrText += '<b>Body ' + str(j+1) + '</b> mass: ' + str(bodyMasses[j]) + ' kg' + "<br />" #The ending is for HTML line breaks
-            palette.sendInfoToHTML('send', massesStrText)
-    else:
-        ui.messageBox('Global parameter not found.')
+    # Determine mass of each body in the component
+    for j in range(0, root.bRepBodies.count): # For each body in the component...
+        body = root.bRepBodies.item(j) # Get the body
+        physProps = adsk.fusion.PhysicalProperties.cast(body.physicalProperties) # Get the physical properties of the body, which includes mass, volume, etc.
+        mass = unitsMgr.formatInternalValue(physProps.mass, massUnits, False) #Converts mass from document mass units to desired mass units
+        bodyMasses.append(mass) # Add the mass of the current body to the list of body masses
+        # ui.messageBox('Body' + str(j+1) + ' has a mass of ' + str(bodyMasses[j]) + " kg") # Display the mass of the current body in a message box (for confirmation)
+        massesStrText += '<b>' + root.bRepBodies[j].name + ' mass:</b> ' + str(bodyMasses[j]) + ' ' + str(massUnits) + "<br />" # Format text display for HTML, which is used by the palette
+        palette.sendInfoToHTML('send', massesStrText) # Send the formatted text to the palette to be displayed
 
-Combos = [[]]
-mult = []
-for i in range(0, userParams.count):
-    Combos[0].append(unitsMgr.formatInternalValue(userParams[i].value, lenUnits, False))
+for i in range(0, userParams.count): # For each user parameter in the Fusion model...
+    Combos[0].append(unitsMgr.formatInternalValue(userParams[i].value, lenUnits, False)) # Add the current parameter value to the Combos list, converting from document units to desired length units
     mult.append(0)
-ui.messageBox("Combos: " + str(Combos))
+ui.messageBox("Combos: " + str(Combos)) # Display the initial parameter values (for confirmation)
 
+### Generate Points Function
+# Function that creates a range of points around the current parameter value with a step size one decade smaller than the parameter value
 def GeneratePoints(NumPoints, SelectedCombo):
-    #Create a range of points around the current parameter value with a step size one decade smaller than the parameter value
+    # Make the global variables accessible within the function
     global Combos
     global mult
     global csvlen
     global writer
-    p1Center = float(Combos[SelectedCombo][0])
-    p2Center = float(Combos[SelectedCombo][1])
-    NumSteps = NumPoints**(1/ParamEdits) # Number of points to be generated for each parameter, adjusted for number of parameters being edited
-    p1 = round(p1Center+round(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
-    p1end = round(p1Center-round(NumSteps//2)*10**(int(math.log10(p1Center))-1), 5)
-    Combos = [[str(userParams[0].name), str(userParams[1].name), str(userParams[2].name), 'Mass_cup', 'Mass_lid', 'Mass_packaging']]
-    # for i in range(0, int(userParams.count)-1):
-    #     Combos[0].append(str(userParams[i].name))
-    # for i in range(0, int(root.bRepBodies.count)-1):
-    #     Combos[0].append("Mass_"+str(root.bRepBodies.item(i).name))
-    if int(math.log10(p1Center))-1 < 0:
+
+    # Identify the central (current) parameter values for the parameters being edited, which will be used as the basis for generating points around them. This is determined by the SelectedCombo variable, which is the index of the row in the Combos list that contains the current parameter values.
+    for i in range(0, userParams.count): # For each user parameter in the Fusion model...
+        if ParamEdits[i] == "Y":
+            Center.append(float(Combos[SelectedCombo][i])) # Add the parameter values for the selected design to the Center list, which will be used as the basis for generating points around it
+    
+    #p1Center = float(Combos[SelectedCombo][0])
+    #p2Center = float(Combos[SelectedCombo][1])
+
+    # 
+    NumSteps = NumPoints**(1/ParamEdits.count("Y")) # Number of points to be generated for each parameter, adjusted for number of parameters being edited
+    p1 = round(Center[0]+round(NumSteps//2)*10**(int(math.log10(Center[0]))-1), 5)
+    p1end = round(Center[0]-round(NumSteps//2)*10**(int(math.log10(Center[0]))-1), 5)
+    #Combos = [[str(userParams[0].name), str(userParams[1].name), str(userParams[2].name), 'Mass_cup', 'Mass_lid', 'Mass_packaging']]
+    ## Setting the column headers for the CSV file to be the parameter names and mass names.
+    Combos = [[]] #Reset Combos
+    for i in range(0, int(userParams.count)): # For all parameters...
+        if ParamEdits[i] == "Y": # If the parameter is being edited...
+            Combos[0].append(str(userParams[i].name)) # Add the parameter name to the header
+    for i in range(0, int(root.bRepBodies.count)): # For all bodies...
+        Combos[0].append("Mass_"+str(root.bRepBodies.item(i).name)) # Add the mass name to the header
+    if int(math.log10(Center[0]))-1 < 0:
         mult[0] = -1
-    elif int(math.log10(p1Center))-1 > 0:
+    elif int(math.log10(Center[0]))-1 > 0:
         mult[0] = 1
     else:
         return
-    inc = round(int(mult[0])*10**(int(math.log10(p1Center))-1), 5)
+    inc = round(int(mult[0])*10**(int(math.log10(Center[0]))-1), 5)
     #ui.messageBox("Generating points for " + str(userParams[0].name) + " from " + str(p1) + " to " + str(p1end) + " with increment of " + str(inc))
     while p1 != p1end and p1 > 0:
         #ui.messageBox("Generating points at " + str(userParams[0].name) + " = " + str(p1))
         userParams.itemByName(str(userParams[0].name)).expression = str(p1) + ' ' + str(lenUnits)
         
-        p2 = round(p2Center+round(NumSteps//2)*10**(int(math.log10(p2Center))-1), 5)
-        p2end = round(p2Center-round(NumSteps//2)*10**(int(math.log10(p2Center))-1), 5)
-        if int(math.log10(p2Center))-1 < 0:
+        p2 = round(Center[1]+round(NumSteps//2)*10**(int(math.log10(Center[1]))-1), 5)
+        p2end = round(Center[1]-round(NumSteps//2)*10**(int(math.log10(Center[1]))-1), 5)
+        if int(math.log10(Center[1]))-1 < 0:
             mult[1] = -1
-        elif int(math.log10(p2Center))-1 > 0:
+        elif int(math.log10(Center[1]))-1 > 0:
             mult[1] = 1
         else:
             return
@@ -112,9 +124,9 @@ def GeneratePoints(NumPoints, SelectedCombo):
                 # Combos.append([p1, p2, p3])
                 Combos.append([p1, p2, p3] + masses)
                 p3 = round(p3+0.1, 5)
-            inc = round(int(mult[1])*10**(int(math.log10(p2Center))-1), 5)
+            inc = round(int(mult[1])*10**(int(math.log10(Center[1]))-1), 5)
             p2 = round(p2+inc, 5)
-        inc = round(int(mult[0])*10**(int(math.log10(p1Center))-1), 5)
+        inc = round(int(mult[0])*10**(int(math.log10(Center[0]))-1), 5)
         p1 = round(p1+inc, 5)
     #ui.messageBox("Generated points: " + str(Combos))
     with open(filepath, 'w+', newline='') as file:
@@ -205,6 +217,8 @@ def stop(context):
 
     # Event Handler
     # Event handler for the documentSaved event.
+# import importlib
+# from .LCA_Interaction import Parameters
 # class MyDocumentSavedHandler(adsk.core.DocumentEventHandler):
 #     def __init__(self):
 #         super().__init__()
@@ -276,6 +290,7 @@ def stop(context):
 
 
     # Sample iterative function to adjust parameter to reach target mass
+# from .LCA_Interaction import TargetMasses
 # def iterate():
 #     bodyMasses = []
 #     for j in range(0, root.bRepBodies.count):
