@@ -6,7 +6,7 @@ from .LCA_Interaction import Parameters
 from .LCA_Interaction import TargetMasses
 
 #File stuff
-# script_dir = os.path.dirname(os.path.abspath(__file__)) #For a relative filepath to the CSV file (uses active directory)
+#script_dir = os.path.dirname(os.path.abspath(__file__)) #For a relative filepath to the CSV file (uses active directory)
 script_dir = "C:/Users/pksc8/Box/Mabey Research Group Files/CAD Sustainability Optimization" #For a fixed filepath to cloud storage using Box tools
 filepath = os.path.join(script_dir, "Coffee_cup_data.csv") #Name of the CSV file to be created with parameter values and body masses
 
